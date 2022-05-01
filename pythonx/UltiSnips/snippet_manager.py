@@ -852,6 +852,8 @@ class SnippetManager:
                 filetypes.append(self.get_buffer_filetypes()[0])
 
         potentials = set()
+        storage_dir_potentials = set()
+        storage_dir_resolved = set()
 
         all_snippet_directories = find_all_snippet_directories()
         has_storage_dir = (
@@ -865,8 +867,12 @@ class SnippetManager:
                 "g:UltiSnipsSnippetStorageDirectoryForUltiSnipsEdit"
             )
             full_path = os.path.expanduser(snippet_storage_dir)
-            potentials.update(
-                _get_potential_snippet_filenames_to_edit(full_path, filetypes)
+            storage_dir_potentials = _get_potential_snippet_filenames_to_edit(
+                full_path, filetypes
+            )
+            potentials.update(storage_dir_potentials)
+            storage_dir_resolved.update(
+                os.path.realpath(p) for p in storage_dir_potentials
             )
         if len(all_snippet_directories) == 1:
             # Most likely the user has set g:UltiSnipsSnippetDirectories to a
@@ -901,7 +907,14 @@ class SnippetManager:
                     "Do you have a .vim directory? Try :UltiSnipsEdit! instead of :UltiSnipsEdit."
                 )
                 return ""
-        return _select_and_create_file_to_edit(potentials)
+        return _select_and_create_file_to_edit(
+            {
+                p
+                for p in potentials
+                if p in storage_dir_potentials
+                or os.path.realpath(p) not in storage_dir_resolved
+            }
+        )
 
     @contextmanager
     def _action_context(self):
